@@ -4,6 +4,8 @@ module ODE
 
 using Polynomial
 
+import Base: start, next, done
+
 ## minimal function export list
 export ode23, ode4, ode45, ode4s, ode4ms, ode78
 
@@ -181,30 +183,85 @@ end # ode23
 # CompereM@asme.org
 # created : 06 October 1999
 # modified: 17 January 2001
-function oderkf(F, x0, tspan, p, a, bs, bp; reltol = 1.0e-5, abstol = 1.0e-8)
+
+immutable ODErkf
+    F :: Function
+    x0
+    tstart
+    coefs
+    reltol;abstol
+    hmin;hmax;h0;tstop
+end
+
+immutable ODErkfState
+    t;x;h
+    stop
+    k
+end
+
+function oderkf{T<:Number}(F,x0,tstart::T,p,a,bs,bp;
+                reltol   = 1.0e-5,
+                abstol   = 1.0e-8,
+                minstep  = eps(T)^(1/3),
+                maxstep  = 1/minstep,
+                initstep = minstep,
+                tstop    = Inf)
+    ODErkf(F,x0,tstart,(p,a,bs,bp),reltol,abstol,minstep,maxstep,initstep,tstop)
+end
+
+function start(problem::ODErkf)
+    t0   = problem.tstart
+    x0   = problem.x0
+    h0   = problem.h0
+    k    = Array(typeof(x0), size(problem.coefs[2],1))
+    return ODErkfState(t0,x0,h0,false,k)
+end
+
+done(problem::ODErkf,state::ODErkfState) = state.stop
+
+function next(problem::ODErkf,state)
+    p  = problem.coefs[1]
+    a  = problem.coefs[2]
+    bs = problem.coefs[3]
+    bp = problem.coefs[4]
+
     # see p.91 in the Ascher & Petzold reference for more infomation.
     pow = 1/p   # use the higher order to estimate the next step size
 
     c = sum(a, 2)   # consistency condition
 
-    # Initialization
-    t = tspan[1]
-    tfinal = tspan[end]
-    tdir = sign(tfinal - t)
-    hmax = abs(tfinal - t)/2.5
-    hmin = abs(tfinal - t)/1e9
-    h = tdir*abs(tfinal - t)/100  # initial guess at a step size
-    x = x0
-    tout = t            # first output time
-    xout = Array(typeof(x0), 1)
-    xout[1] = x         # first output solution
+    t = state.t
+    h = state.h
+    x = state.x
+    k = state.k
 
-    k = Array(typeof(x0), length(c))
+    # # return the first step on the beginning of integration
+    # if t == problem.tstart
+    #     return ((t,x),ODErkfState(t,x,h,false,k))
+    # end
+
+    F    = problem.F
+    tmax = problem.tstop
+    hmin = problem.hmin
+    hmax = problem.hmax
+
     k[1] = F(t,x) # first stage
 
-    while abs(t) != abs(tfinal) && abs(h) >= hmin
-        if abs(h) > abs(tfinal-t)
-            h = tfinal - t
+    stop = false
+
+    # loop over decreasing step sizes, until desired accuracy is
+    # reached or the step size becomes smaller than hmin
+    while true
+
+        # trim the step size if t+h exceeds the tmax
+        if abs(h) > abs(tmax-t)
+            h = tmax - t
+        end
+
+        if abs(h) < abs(hmin)
+            warn("Step size grew too small. t=$t, h=$h")
+            stop = true
+            break
         end
 
         #(p-1)th and pth order estimates
@@ -228,14 +285,18 @@ function oderkf(F, x0, tspan, p, a, bs, bp; reltol = 1.0e-5, abstol = 1.0e-8)
 
         # Estimate the error and the acceptable error
         delta = norm(gamma1, Inf)              # actual error
-        tau   = max(reltol*norm(x,Inf),abstol) # allowable error
+        tau   = max(problem.reltol*norm(x,Inf),problem.abstol) # allowable error
+
+        # Save the value of h
+        h1 = h
+        # Update the step size
+        h = min(hmax, 0.8*h*(tau/delta)^pow)
 
         # Update the solution only if the error is acceptable
         if delta <= tau
-            t = t + h
+
+            t = t + h1
             x = xp    # <-- using the higher order estimate is called 'local extrapolation'
-            tout = [tout; t]
-            push!(xout, x)
 
             # Compute the slopes by computing the k[:,j+1]'th column based on the previous k[:,1:j] columns
             # notes: k needs to end up as an Nxs, a is 7x6, which is s by (s-1),
@@ -249,17 +310,39 @@ function oderkf(F, x0, tspan, p, a, bs, bp; reltol = 1.0e-5, abstol = 1.0e-8)
             else
                 k[1] = F(t,x) # first stage
             end
+
+            break
+
+        elseif !isfinite(delta)
+            # something went wrong, evacuate immediately
+            warn("New step contains NaN or Inf. t=$t, h=$h")
+            stop = true
+            break
         end
 
-        # Update the step size
-        h = min(hmax, 0.8*h*(tau/delta)^pow)
-    end # while (t < tfinal) & (h >= hmin)
-
-    if abs(t) < abs(tfinal)
-      println("Step size grew too small. t=", t, ", h=", abs(h), ", x=", x)
     end
 
-    return tout, xout
+    # stop if we reached tmax
+    stop = stop || abs(t) >= abs(tmax)
+
+    return ((t,x),ODErkfState(t,x,h,stop,k))
+
+end
+
+
+function oderkf(F,x0,tspan::Vector,coefs...;args...)
+    t0    = tspan[1]
+    tstop = tspan[end]
+
+    ode = oderkf(F,x0,t0,coefs...;args...,tstop=tstop)
+
+    tout = Array(typeof(t0),0)
+    xout = Array(typeof(x0),0)
+    for (t,x) in ode
+        push!(tout,t)
+        push!(xout,x)
+    end
+    return (tout,xout)
 end
 
 # Bogacki–Shampine coefficients
