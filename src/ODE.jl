@@ -68,7 +68,7 @@ function ode23(F, y0, tspan; reltol = 1.e-5, abstol = 1.e-8)
 
     s1 = F(t, y)
     r = norm(s1./max(abs(y), threshold), Inf) + realmin() # TODO: fix type bug in max()
-    h = tdir*0.8*reltol^(1/3)/r
+    h = tdir*8//10*reltol^(1//3)/r
 
     # The main loop.
 
@@ -84,7 +84,7 @@ function ode23(F, y0, tspan; reltol = 1.e-5, abstol = 1.e-8)
             h = tfinal - t
         end
 
-        # Attempt a step.
+       # Attempt a step.
 
         s2 = F(t+h/2, y+h/2*s1)
         s3 = F(t+3*h/4, y+3*h/4*s2)
@@ -109,7 +109,7 @@ function ode23(F, y0, tspan; reltol = 1.e-5, abstol = 1.e-8)
 
         # Compute a new step size.
 
-        h = h*min(5, 0.8*(reltol/err)^(1/3))
+        h = h*min(5, 8//10*(reltol/err)^(1//3))
 
         # Exit early if step size is too small.
 
@@ -202,7 +202,7 @@ end
 function oderkf{T<:Number}(F,x0,tstart::T,p,a,bs,bp;
                 reltol   = 1.0e-5,
                 abstol   = 1.0e-8,
-                minstep  = eps(T)^(1/3),
+                minstep  = eps(T)^(1//3),
                 maxstep  = 1/minstep,
                 initstep = minstep,
                 tstop    = Inf)
@@ -226,7 +226,7 @@ function next(problem::ODErkf,state)
     bp = problem.coefs[4]
 
     # see p.91 in the Ascher & Petzold reference for more infomation.
-    pow = 1/p   # use the higher order to estimate the next step size
+    pow = 1//p   # use the higher order to estimate the next step size
 
     c = sum(a, 2)   # consistency condition
 
@@ -290,7 +290,7 @@ function next(problem::ODErkf,state)
         # Save the value of h
         h1 = h
         # Update the step size
-        h = min(hmax, 0.8*h*(tau/delta)^pow)
+        h = min(hmax, 8//10*h*(tau/delta)^pow)
 
         # Update the solution only if the error is acceptable
         if delta <= tau
@@ -348,13 +348,13 @@ end
 # Bogacki–Shampine coefficients
 const bs_coefficients = (3,
                          [    0           0      0      0
-                              1/2         0      0      0
-                              0         3/4      0      0
-                              2/9       1/3     4/9     0],
+                              1//2         0      0      0
+                              0         3//4      0      0
+                              2//9       1//3     4//9     0],
                          # 2nd order b-coefficients
-                         [7/24 1/4 1/3 1/8],
+                         [7//24 1//4 1//3 1//8],
                          # 3rd order b-coefficients
-                         [2/9 1/3 4/9 0],
+                         [2//9 1//3 4//9 0],
                          )
 ode23_bs(F, x0, tspan; kwargs...) = oderkf(F, x0, tspan, bs_coefficients...; kwargs...)
 
@@ -367,31 +367,31 @@ ode23_bs(F, x0, tspan; kwargs...) = oderkf(F, x0, tspan, bs_coefficients...; kwa
 # Dormand-Prince coefficients
 const dp_coefficients = (5,
                          [    0           0          0         0         0        0
-                              1/5         0          0         0         0        0
-                              3/40        9/40       0         0         0        0
-                             44/45      -56/15      32/9       0         0        0
-                          19372/6561 -25360/2187 64448/6561 -212/729     0        0
-                           9017/3168   -355/33   46732/5247   49/176 -5103/18656  0
-                             35/384       0        500/1113  125/192 -2187/6784  11/84],
+                              1//5         0          0         0         0        0
+                              3//40        9//40       0         0         0        0
+                             44//45      -56//15      32//9       0         0        0
+                          19372//6561 -25360//2187 64448//6561 -212//729     0        0
+                           9017//3168   -355//33   46732//5247   49//176 -5103//18656  0
+                             35//384       0        500//1113  125//192 -2187//6784  11//84],
                          # 4th order b-coefficients
-                         [5179/57600 0 7571/16695 393/640 -92097/339200 187/2100 1/40],
+                         [5179//57600 0 7571//16695 393//640 -92097//339200 187//2100 1//40],
                          # 5th order b-coefficients
-                         [35/384 0 500/1113 125/192 -2187/6784 11/84 0],
+                         [35//384 0 500//1113 125//192 -2187//6784 11//84 0],
                          )
 ode45_dp(F, x0, tspan; kwargs...) = oderkf(F, x0, tspan, dp_coefficients...; kwargs...)
 
 # Fehlberg coefficients
 const fb_coefficients = (5,
                          [    0         0          0         0        0
-                             1/4        0          0         0        0
-                             3/32       9/32       0         0        0
-                          1932/2197 -7200/2197  7296/2197    0        0
-                           439/216     -8       3680/513  -845/4104   0
-                            -8/27       2      -3544/2565 1859/4104 -11/40],
+                             1//4        0          0         0        0
+                             3//32       9//32       0         0        0
+                          1932//2197 -7200//2197  7296//2197    0        0
+                           439//216     -8       3680//513  -845//4104   0
+                            -8//27       2      -3544//2565 1859//4104 -11//40],
                          # 4th order b-coefficients
-                         [25/216 0 1408/2565 2197/4104 -1/5 0],
+                         [25//216 0 1408//2565 2197//4104 -1//5 0],
                          # 5th order b-coefficients
-                         [16/135 0 6656/12825 28561/56430 -9/50 2/55],
+                         [16//135 0 6656//12825 28561//56430 -9//50 2//55],
                          )
 ode45_fb(F, x0, tspan; kwargs...) = oderkf(F, x0, tspan, fb_coefficients...; kwargs...)
 
@@ -399,15 +399,15 @@ ode45_fb(F, x0, tspan; kwargs...) = oderkf(F, x0, tspan, fb_coefficients...; kwa
 # Numerical Recipes in Fortran 77
 const ck_coefficients = (5,
                          [   0         0       0           0          0
-                             1/5       0       0           0          0
-                             3/40      9/40    0           0          0
-                             3/10     -9/10    6/5         0          0
-                           -11/54      5/2   -70/27       35/27       0
-                          1631/55296 175/512 575/13824 44275/110592 253/4096],
+                             1//5       0       0           0          0
+                             3//40      9//40    0           0          0
+                             3//10     -9//10    6//5         0          0
+                           -11//54      5//2   -70//27       35//27       0
+                          1631//55296 175//512 575//13824 44275//110592 253//4096],
                          # 4th order b-coefficients
-                         [37/378 0 250/621 125/594 0 512/1771],
+                         [37//378 0 250//621 125//594 0 512//1771],
                          # 5th order b-coefficients
-                         [2825/27648 0 18575/48384 13525/55296 277/14336 1/4],
+                         [2825//27648 0 18575//48384 13525//55296 277//14336 1//4],
                          )
 ode45_ck(F, x0, tspan; kwargs...) = oderkf(F, x0, tspan, ck_coefficients...; kwargs...)
 
@@ -417,22 +417,22 @@ ode45_ck(F, x0, tspan; kwargs...) = oderkf(F, x0, tspan, ck_coefficients...; kwa
 # National Aeronautics and Space Administration.
 const fb_coefficients_78 = (8,
                             [     0      0      0       0        0         0       0       0     0      0    0 0
-                                  2/27   0      0       0        0         0       0       0     0      0    0 0
-                                  1/36   1/12   0       0        0         0       0       0     0      0    0 0
-                                  1/24   0      1/8     0        0         0       0       0     0      0    0 0
-                                  5/12   0    -25/16   25/16     0         0       0       0     0      0    0 0
-                                  1/20   0      0       1/4      1/5       0       0       0     0      0    0 0
-                                -25/108  0      0     125/108  -65/27    125/54    0       0     0      0    0 0
-                                 31/300  0      0       0       61/225    -2/9    13/900   0     0      0    0 0
-                                  2      0      0     -53/6    704/45   -107/9    67/90    3     0      0    0 0
-                                -91/108  0      0      23/108 -976/135   311/54  -19/60   17/6  -1/12   0    0 0
-                               2383/4100 0      0    -341/164 4496/1025 -301/82 2133/4100 45/82 45/164 18/41 0 0
-                                  3/205  0      0       0        0        -6/41   -3/205  -3/41  3/41   6/41 0 0
-                              -1777/4100 0      0    -341/164 4496/1025 -289/82 2193/4100 51/82 33/164 12/41 0 1],
+                                  2//27   0      0       0        0         0       0       0     0      0    0 0
+                                  1//36   1//12   0       0        0         0       0       0     0      0    0 0
+                                  1//24   0      1//8     0        0         0       0       0     0      0    0 0
+                                  5//12   0    -25//16   25//16     0         0       0       0     0      0    0 0
+                                  1//20   0      0       1//4      1//5       0       0       0     0      0    0 0
+                                -25//108  0      0     125//108  -65//27    125//54    0       0     0      0    0 0
+                                 31//300  0      0       0       61//225    -2//9    13//900   0     0      0    0 0
+                                  2      0      0     -53//6    704//45   -107//9    67//90    3     0      0    0 0
+                                -91//108  0      0      23//108 -976//135   311//54  -19//60   17//6  -1//12   0    0 0
+                               2383//4100 0      0    -341//164 4496//1025 -301//82 2133//4100 45//82 45//164 18//41 0 0
+                                  3//205  0      0       0        0        -6//41   -3//205  -3//41  3//41   6//41 0 0
+                              -1777//4100 0      0    -341//164 4496//1025 -289//82 2193//4100 51//82 33//164 12//41 0 1],
                             # 7th order b-coefficients
-                            [41/840 0 0 0 0 34/105 9/35 9/35 9/280 9/280 41/840 0 0],
+                            [41//840 0 0 0 0 34//105 9//35 9//35 9//280 9//280 41//840 0 0],
                             # 8th order b-coefficients
-                            [0 0 0 0 0 34/105 9/35 9/35 9/280 9/280 0 41/840 41/840],
+                            [0 0 0 0 0 34//105 9//35 9//35 9//280 9//280 0 41//840 41//840],
                             )
 ode78_fb(F, x0, tspan; kwargs...) = oderkf(F, x0, tspan, fb_coefficients_78...; kwargs...)
 
@@ -469,7 +469,7 @@ function ode4(F, x0, tspan)
         midxdot[4] = F(tspan[i]+h[i],    x[i] + midxdot[3].*h[i])
 
         # Integrate
-        x[i+1] = x[i] + 1/6 .*h[i].*sum(midxdot)
+        x[i+1] = x[i] + 1//6 .*h[i].*sum(midxdot)
     end
     return [tspan], x
 end
@@ -563,13 +563,13 @@ ode4s_kr(F, x0, tspan; jacobian=nothing) = oderosenbrock(F, x0, tspan, kr4_coeff
 const s4_coefficients = (0.5,
                          [ 0    0    0 0
                            2    0    0 0
-                          48/25 6/25 0 0
-                          48/25 6/25 0 0],
-                         [19/9 1/2 25/108 125/108],
+                          48//25 6//25 0 0
+                          48//25 6//25 0 0],
+                         [19//9 1//2 25//108 125//108],
                          [   0       0      0   0
                             -8       0      0   0
-                           372/25   12/5    0   0
-                          -112/125 -54/125 -2/5 0],)
+                           372//25   12//5    0   0
+                          -112//125 -54//125 -2//5 0],)
 
 ode4s_s(F, x0, tspan; jacobian=nothing) = oderosenbrock(F, x0, tspan, s4_coefficients...; jacobian=jacobian)
 
@@ -584,9 +584,9 @@ function ode_ms(F, x0, tspan, order::Integer)
 
     if 1 <= order <= 4
         b = [ 1      0      0     0
-             -1/2    3/2    0     0
-             5/12  -16/12  23/12 0
-             -9/24   37/24 -59/24 55/24]
+             -1//2    3//2    0     0
+             5//12  -16//12  23//12 0
+             -9//24   37//24 -59//24 55//24]
     else
         for steporder = size(b,1):order
             s = steporder - 1
